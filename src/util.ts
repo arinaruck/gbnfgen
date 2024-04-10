@@ -2,6 +2,7 @@ import {
   GrammarElement,
   GrammarRule,
   RuleReference,
+  alternatives,
   charPattern,
   group,
   literal,
@@ -18,7 +19,26 @@ const WS_ELEM: GrammarElement = {
 
 const STRING_ELEM: GrammarElement = {
   identifier: "string",
-  alternatives: [sequence(literal(`"`), charPattern(/([^"]*)/g), literal(`"`))],
+  alternatives: [
+    sequence(
+      literal(`"`),
+      group(
+        sequence(alternatives(
+          charPattern(/[^"\x7F\x00-\x1F]/g), // Anything that's not a control sequence
+          sequence(
+            literal(`\\`), // Escape sequences
+            alternatives(
+              charPattern(/["\\/bfnrt]/g), // WS escape sequences
+              sequence( // Unicode escape sequences
+                literal(`u`),
+                sequence(
+                  charPattern(/[0-9a-fA-F]/g),
+                  charPattern(/[0-9a-fA-F]/g),
+                  charPattern(/[0-9a-fA-F]/g),
+                  charPattern(/[0-9a-fA-F]/g))))))),
+        "star"),
+      literal(`"`))
+  ],
 };
 const BOOLEAN_ELEM: GrammarElement = {
   identifier: "boolean",
@@ -31,6 +51,7 @@ const NUMBER_ELEM: GrammarElement = {
   identifier: "number",
   alternatives: [
     sequence(
+      group(sequence(literal(`-`)), "optional"),
       charPattern(/[0-9]+/g),
       charPattern(/"."?/g),
       charPattern(/[0-9]*/g)
